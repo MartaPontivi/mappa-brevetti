@@ -1,0 +1,162 @@
+
+<style>
+.top-countries{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;}
+.card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:10px 14px;flex:1;min-width:110px;}
+.card .lbl{font-size:11px;color:var(--color-text-secondary);margin-bottom:4px;}
+.card .val{font-size:20px;font-weight:500;color:var(--color-text-primary);}
+.card .ctr{font-size:11px;color:var(--color-text-tertiary);}
+.legend-wrap{display:flex;align-items:center;gap:10px;margin-top:12px;font-size:12px;color:var(--color-text-secondary);}
+.legend-bar{display:flex;gap:2px;}
+.legend-bar span{display:inline-block;width:36px;height:13px;border-radius:2px;}
+.src{font-size:11px;color:var(--color-text-tertiary);margin-top:8px;}
+</style>
+
+<h2 class="sr-only">Distribuzione geografica dei documenti brevettuali in Europa</h2>
+<h1 style="font-size:16px;font-weight:500;margin-bottom:4px;color:var(--color-text-primary);">Distribuzione geografica dei documenti brevettuali in Europa</h1>
+<p style="font-size:13px;color:var(--color-text-secondary);margin-bottom:16px;">Numero di documenti per paese (family) — elaborazione propria</p>
+
+<div class="top-countries">
+  <div class="card"><div class="lbl">1° posto</div><div class="val">87</div><div class="ctr">Germania (DE)</div></div>
+  <div class="card"><div class="lbl">2° posto</div><div class="val">72</div><div class="ctr">Regno Unito (GB)</div></div>
+  <div class="card"><div class="lbl">3° posto</div><div class="val">52</div><div class="ctr">Francia (FR)</div></div>
+  <div class="card"><div class="lbl">4° posto</div><div class="val">45</div><div class="ctr">Spagna (ES)</div></div>
+  <div class="card"><div class="lbl">Italia</div><div class="val">31</div><div class="ctr">IT — 7° posto</div></div>
+</div>
+
+<div id="map" style="width:100%;background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);overflow:hidden;"></div>
+
+<div class="legend-wrap">
+  <span>N° brevetti</span>
+  <div>
+    <div class="legend-bar" id="legend-bar"></div>
+    <div style="display:flex;justify-content:space-between;width:216px;font-size:11px;color:var(--color-text-tertiary);margin-top:3px;">
+      <span>1</span><span>5</span><span>15</span><span>40</span><span>87</span>
+    </div>
+  </div>
+</div>
+<p class="src">Scala cromatica logaritmica. Paesi senza dati in grigio chiaro.</p>
+
+<div id="tooltip" style="position:fixed;display:none;background:var(--color-background-primary);border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);padding:8px 12px;font-size:13px;pointer-events:none;z-index:100;">
+  <strong id="tt-name" style="display:block;color:var(--color-text-primary);margin-bottom:2px;"></strong>
+  <span id="tt-val" style="color:var(--color-text-secondary);font-size:12px;"></span>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
+<script>
+const data = {
+  '276':{name:'Germania',val:87},
+  '826':{name:'Regno Unito',val:72},
+  '250':{name:'Francia',val:52},
+  '724':{name:'Spagna',val:45},
+  '380':{name:'Italia',val:31},
+  '528':{name:'Paesi Bassi',val:30},
+  '578':{name:'Norvegia',val:30},
+  '208':{name:'Danimarca',val:23},
+  '246':{name:'Finlandia',val:23},
+  '752':{name:'Svezia',val:21},
+  '040':{name:'Austria',val:15},
+  '616':{name:'Polonia',val:15},
+  '056':{name:'Belgio',val:14},
+  '300':{name:'Grecia',val:11},
+  '642':{name:'Romania',val:11},
+  '191':{name:'Croazia',val:10},
+  '756':{name:'Svizzera',val:8},
+  '620':{name:'Portogallo',val:8},
+  '348':{name:'Ungheria',val:7},
+  '203':{name:'Rep. Ceca',val:5},
+  '688':{name:'Serbia',val:5},
+  '804':{name:'Ucraina',val:5},
+  '705':{name:'Slovenia',val:4},
+  '440':{name:'Lituania',val:3},
+  '442':{name:'Lussemburgo',val:3},
+  '100':{name:'Bulgaria',val:2},
+  '196':{name:'Cipro',val:2},
+  '372':{name:'Irlanda',val:1},
+  '352':{name:'Islanda',val:1},
+  '499':{name:'Montenegro',val:1},
+};
+
+const europeIds = new Set([...Object.keys(data),'233','428','703','807','008','070','051','268','031','470','792','643']);
+
+const blueStops = ['#dbeafe','#93c5fd','#60a5fa','#3b82f6','#2563eb','#1d4ed8'];
+const lb = document.getElementById('legend-bar');
+blueStops.forEach(c => { const s=document.createElement('span'); s.style.background=c; lb.appendChild(s); });
+
+const logScale = d3.scaleLog().domain([1,87]).range([0,5.99]).clamp(true);
+function getColor(val){ return val ? blueStops[Math.min(Math.floor(logScale(val)),5)] : '#e5e7eb'; }
+
+const W=760, H=620;
+const svg = d3.select('#map').append('svg')
+  .attr('viewBox',`0 0 ${W} ${H}`)
+  .attr('width','100%');
+
+const projection = d3.geoMercator().center([13,52]).scale(420).translate([W/2, H/2]);
+const path = d3.geoPath(projection);
+
+const tooltip = document.getElementById('tooltip');
+const ttName  = document.getElementById('tt-name');
+const ttVal   = document.getElementById('tt-val');
+
+const callouts = {
+  '276':{label:'Germania',    dx:-62, dy:-28},
+  '826':{label:'Regno Unito', dx:-85, dy:-35},
+  '250':{label:'Francia',     dx:-70, dy: 32},
+  '380':{label:'Italia',      dx: 60, dy: 18},
+  '724':{label:'Spagna',      dx:-65, dy: 55},
+};
+
+d3.json('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json').then(world => {
+  const features = topojson.feature(world, world.objects.countries).features;
+  const euroFeatures = features.filter(f => europeIds.has(String(f.id)));
+
+  svg.selectAll('path.country')
+    .data(euroFeatures)
+    .join('path')
+    .attr('class','country')
+    .attr('d', path)
+    .attr('fill', f => getColor((data[String(f.id)]||{}).val))
+    .attr('stroke','#fff')
+    .attr('stroke-width', 0.6)
+    .style('cursor', f => data[String(f.id)] ? 'pointer' : 'default')
+    .on('mousemove', function(event, f){
+      const d = data[String(f.id)];
+      ttName.textContent = d ? d.name : (f.properties.name||'—');
+      ttVal.textContent  = d ? `Documenti: ${d.val}` : 'Nessun documento';
+      tooltip.style.display='block';
+      tooltip.style.left=(event.clientX+14)+'px';
+      tooltip.style.top =(event.clientY-10)+'px';
+    })
+    .on('mouseleave',()=>{ tooltip.style.display='none'; });
+
+  euroFeatures.forEach(f => {
+    const id = String(f.id);
+    if (!callouts[id] || !data[id]) return;
+    const info = callouts[id];
+    const d = data[id];
+    const [cx,cy] = path.centroid(f);
+    if (isNaN(cx)||isNaN(cy)) return;
+    const lx = cx+info.dx, ly = cy+info.dy;
+    const boxW = info.label.length>8 ? 90 : 68;
+
+    svg.append('line')
+      .attr('x1',cx).attr('y1',cy).attr('x2',lx).attr('y2',ly+13)
+      .attr('stroke','rgba(0,0,0,0.22)').attr('stroke-width',0.8)
+      .attr('stroke-dasharray','2,2');
+
+    svg.append('circle').attr('cx',cx).attr('cy',cy).attr('r',2.5).attr('fill','#1e293b');
+
+    svg.append('rect')
+      .attr('x',lx-boxW/2).attr('y',ly).attr('width',boxW).attr('height',26).attr('rx',4)
+      .attr('fill','rgba(255,255,255,0.95)').attr('stroke','rgba(0,0,0,0.12)').attr('stroke-width',0.5);
+
+    svg.append('text').attr('x',lx).attr('y',ly+11)
+      .attr('text-anchor','middle').attr('font-size','9px').attr('font-weight','600')
+      .attr('fill','#0f172a').text(info.label);
+
+    svg.append('text').attr('x',lx).attr('y',ly+22)
+      .attr('text-anchor','middle').attr('font-size','8.5px')
+      .attr('fill','#475569').text(d.val+' doc.');
+  });
+});
+</script>
