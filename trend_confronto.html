@@ -1,0 +1,120 @@
+
+<h2 class="sr-only">Confronto evoluzione temporale brevetti: targeted removal vs density/gravity separation, 1958–2025</h2>
+
+<div style="display:flex;gap:24px;margin-bottom:12px;font-size:12px;color:var(--color-text-secondary);">
+  <span style="display:flex;align-items:center;gap:6px;">
+    <span style="width:24px;height:2px;background:#2563eb;display:inline-block;border-radius:2px;"></span>
+    Targeted removal — plastic particles
+  </span>
+  <span style="display:flex;align-items:center;gap:6px;">
+    <span style="width:10px;height:2px;background:#e85e2c;display:inline-block;"></span><span style="width:4px;display:inline-block;"></span><span style="width:10px;height:2px;background:#e85e2c;display:inline-block;"></span>
+    Density/gravity separation
+  </span>
+</div>
+
+<div style="position:relative;width:100%;height:340px;">
+  <canvas id="confrontoChart" role="img" aria-label="Grafico a linea: confronto tra targeted removal e density/gravity separation dal 1958 al 2025.">Confronto evoluzione temporale brevetti: targeted removal e density/gravity separation 1958-2025.</canvas>
+</div>
+<div style="text-align:center;font-size:12px;color:var(--color-text-secondary);margin-top:8px;">Anno di prima pubblicazione</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+const years = [];
+for (let y = 1958; y <= 2025; y++) years.push(y);
+
+const targetedRaw = {
+  1958:2,1960:1,1961:1,1965:2,1967:1,1968:2,1969:1,1970:6,1971:5,1972:9,
+  1973:9,1974:10,1975:3,1976:4,1977:6,1978:3,1979:7,1980:10,1981:13,1982:6,
+  1983:4,1984:2,1985:1,1986:1,1987:1,1988:2,1989:1,1990:5,1991:6,1992:7,
+  1993:4,1994:6,1996:4,1997:3,1998:7,1999:5,2000:2,2001:15,2002:12,2003:3,
+  2004:14,2005:15,2006:17,2007:14,2008:13,2009:11,2010:10,2011:21,2012:33,
+  2013:30,2014:37,2015:39,2016:50,2017:68,2018:119,2019:181,2020:267,
+  2021:353,2022:396,2023:407,2024:455,2025:466
+};
+
+const densityRaw = {
+  1959:1,1960:1,1963:1,1966:1,1967:1,1968:1,1969:1,1970:1,1971:2,1972:1,
+  1973:3,1974:9,1975:5,1976:13,1977:4,1978:3,1979:4,1980:12,1981:8,1982:7,
+  1983:6,1984:2,1985:9,1986:7,1987:8,1988:6,1989:8,1990:3,1991:7,1992:22,
+  1993:30,1994:44,1995:24,1996:25,1997:14,1998:21,1999:17,2000:20,2001:25,
+  2002:24,2003:19,2004:22,2005:25,2006:35,2007:14,2008:31,2009:32,2010:29,
+  2011:24,2012:27,2013:33,2014:20,2015:18,2016:36,2017:73,2018:79,2019:82,
+  2020:123,2021:137,2022:122,2023:106,2024:144,2025:161
+};
+
+const t = years.map(y => targetedRaw[y] ?? 0);
+const d = years.map(y => densityRaw[y] ?? 0);
+
+new Chart(document.getElementById('confrontoChart'), {
+  type: 'line',
+  data: {
+    labels: years,
+    datasets: [
+      {
+        label: 'Targeted removal',
+        data: t,
+        borderColor: '#2563eb',
+        borderWidth: 2,
+        pointRadius: 0,
+        pointHoverRadius: 4,
+        pointHoverBackgroundColor: '#2563eb',
+        fill: true,
+        backgroundColor: 'rgba(219,234,254,0.35)',
+        tension: 0.3
+      },
+      {
+        label: 'Density/gravity',
+        data: d,
+        borderColor: '#e85e2c',
+        borderWidth: 2,
+        borderDash: [5,4],
+        pointRadius: 0,
+        pointHoverRadius: 4,
+        pointHoverBackgroundColor: '#e85e2c',
+        fill: true,
+        backgroundColor: 'rgba(250,236,231,0.3)',
+        tension: 0.3
+      }
+    ]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: { mode: 'index', intersect: false },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: {
+          title: ctx => 'Anno: ' + ctx[0].label,
+          label: ctx => ctx.dataset.label + ': ' + ctx.parsed.y + ' doc.'
+        }
+      }
+    },
+    scales: {
+      x: {
+        grid: { color: 'rgba(0,0,0,0.06)' },
+        ticks: {
+          color: '#64748b',
+          font: { size: 11 },
+          autoSkip: true,
+          maxTicksLimit: 14,
+          maxRotation: 0
+        },
+        border: { display: false }
+      },
+      y: {
+        min: 0,
+        grid: { color: 'rgba(0,0,0,0.06)' },
+        ticks: { color: '#64748b', font: { size: 11 }, stepSize: 50 },
+        border: { display: false },
+        title: {
+          display: true,
+          text: 'Numero di documenti',
+          color: '#64748b',
+          font: { size: 11 }
+        }
+      }
+    }
+  }
+});
+</script>
