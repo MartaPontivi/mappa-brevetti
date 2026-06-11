@@ -1,0 +1,130 @@
+
+<style>
+.top-countries{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;}
+.card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:10px 14px;flex:1;min-width:110px;}
+.card .lbl{font-size:11px;color:var(--color-text-secondary);margin-bottom:4px;}
+.card .val{font-size:20px;font-weight:500;color:var(--color-text-primary);}
+.card .ctr{font-size:11px;color:var(--color-text-tertiary);}
+.legend-wrap{display:flex;align-items:center;gap:10px;margin-top:12px;font-size:12px;color:var(--color-text-secondary);}
+.legend-bar{display:flex;gap:2px;}
+.legend-bar span{display:inline-block;width:36px;height:13px;border-radius:2px;}
+</style>
+
+<h2 class="sr-only">Distribuzione geografica dei documenti brevettuali density/gravity separation</h2>
+<h1 style="font-size:16px;font-weight:500;margin-bottom:16px;color:var(--color-text-primary);">Distribuzione geografica dei documenti brevettuali — Density/gravity separation</h1>
+
+<div class="top-countries">
+  <div class="card"><div class="lbl">1° posto</div><div class="val">904</div><div class="ctr">Cina (CN)</div></div>
+  <div class="card"><div class="lbl">2° posto</div><div class="val">468</div><div class="ctr">USA (US)</div></div>
+  <div class="card"><div class="lbl">3° posto</div><div class="val">271</div><div class="ctr">Corea del Sud (KR)</div></div>
+  <div class="card"><div class="lbl">4° posto</div><div class="val">264</div><div class="ctr">Germania (DE)</div></div>
+  <div class="card"><div class="lbl">Totale documenti</div><div class="val">1.853</div><div class="ctr">70+ paesi</div></div>
+</div>
+
+<div id="map" style="width:100%;background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);overflow:hidden;"></div>
+
+<div class="legend-wrap">
+  <span>N° brevetti</span>
+  <div>
+    <div class="legend-bar" id="legend-bar"></div>
+    <div style="display:flex;justify-content:space-between;width:216px;font-size:11px;color:var(--color-text-tertiary);margin-top:3px;">
+      <span>1</span><span>10</span><span>50</span><span>200</span><span>904</span>
+    </div>
+  </div>
+</div>
+
+<div id="tooltip" style="position:fixed;display:none;background:var(--color-background-primary);border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);padding:8px 12px;font-size:13px;pointer-events:none;z-index:100;">
+  <strong id="tt-name" style="display:block;color:var(--color-text-primary);margin-bottom:2px;"></strong>
+  <span id="tt-val" style="color:var(--color-text-secondary);font-size:12px;"></span>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
+<script>
+const rawData = {"CN":904,"US":468,"KR":271,"DE":264,"JP":263,"CA":164,"ES":127,"AU":120,"AT":93,"BR":82,"MX":80,"FR":77,"PL":65,"IT":62,"GB":61,"TW":45,"DK":37,"PT":37,"BE":25,"HU":24,"NL":24,"ZA":20,"RU":18,"SI":17,"CH":15,"HR":15,"HK":14,"NO":13,"SE":12,"IL":11,"FI":10,"CZ":9,"RS":9,"AR":7,"NZ":7,"SG":7,"UA":7,"CL":6,"LU":6,"PH":6,"BG":4,"CO":4,"GR":4,"MY":4,"SK":4,"IE":3,"LT":3,"MA":3,"CR":2,"CY":2,"PE":2,"CU":1,"EG":1,"GE":1,"GT":1,"IN":1,"JO":1,"SA":1,"TR":1,"UY":1};
+
+const countryNames = {"CN":"Cina","US":"USA","KR":"Corea del Sud","JP":"Giappone","DE":"Germania","GB":"Regno Unito","AU":"Australia","CA":"Canada","FR":"Francia","ES":"Spagna","IT":"Italia","AT":"Austria","BR":"Brasile","MX":"Messico","PL":"Polonia","TW":"Taiwan","DK":"Danimarca","PT":"Portogallo","BE":"Belgio","HU":"Ungheria","NL":"Paesi Bassi","ZA":"Sudafrica","RU":"Russia","SI":"Slovenia","CH":"Svizzera","HR":"Croazia","HK":"Hong Kong","NO":"Norvegia","SE":"Svezia","IL":"Israele","FI":"Finlandia","CZ":"Rep. Ceca","RS":"Serbia","AR":"Argentina","NZ":"Nuova Zelanda","SG":"Singapore","UA":"Ucraina","CL":"Cile","LU":"Lussemburgo","PH":"Filippine","BG":"Bulgaria","CO":"Colombia","GR":"Grecia","MY":"Malaysia","SK":"Slovacchia","IE":"Irlanda","LT":"Lituania","MA":"Marocco","CR":"Costa Rica","CY":"Cipro","PE":"Perù","CU":"Cuba","EG":"Egitto","GE":"Georgia","GT":"Guatemala","IN":"India","JO":"Giordania","SA":"Arabia Saudita","TR":"Turchia","UY":"Uruguay"};
+
+const iso2to3 = {"AR":"032","AT":"040","AU":"036","BE":"056","BG":"100","BR":"076","CA":"124","CH":"756","CL":"152","CN":"156","CO":"170","CR":"188","CU":"192","CY":"196","CZ":"203","DE":"276","DK":"208","EG":"818","ES":"724","FI":"246","FR":"250","GB":"826","GE":"268","GR":"300","GT":"320","HK":"344","HR":"191","HU":"348","IE":"372","IL":"376","IN":"356","IT":"380","JO":"400","JP":"392","KR":"410","LT":"440","LU":"442","MA":"504","MY":"458","MX":"484","NL":"528","NO":"578","NZ":"554","PE":"604","PH":"608","PL":"616","PT":"620","RO":"642","RS":"688","RU":"643","SA":"682","SE":"752","SG":"702","SI":"705","SK":"703","TR":"792","TW":"158","UA":"804","US":"840","UY":"858","ZA":"710"};
+
+const numericToIso2 = {};
+Object.entries(iso2to3).forEach(([a,b]) => { numericToIso2[b] = a; });
+
+const blueStops = ['#dbeafe','#93c5fd','#60a5fa','#3b82f6','#2563eb','#1d4ed8'];
+const legendBar = document.getElementById('legend-bar');
+blueStops.forEach(c => { const s=document.createElement('span'); s.style.background=c; legendBar.appendChild(s); });
+
+const logScale = d3.scaleLog().domain([1,904]).range([0,5.99]).clamp(true);
+function getColor(val){ return val ? blueStops[Math.min(Math.floor(logScale(val)),5)] : '#e5e7eb'; }
+
+const W=900, H=468;
+const svg = d3.select('#map').append('svg').attr('viewBox',`0 0 ${W} ${H}`).attr('width','100%');
+const projection = d3.geoNaturalEarth1().scale(W/6.3).translate([W/2, H/2]);
+const path = d3.geoPath(projection);
+
+const tooltip = document.getElementById('tooltip');
+const ttName  = document.getElementById('tt-name');
+const ttVal   = document.getElementById('tt-val');
+
+const manualOffsets = {
+  "156": {label:"Cina",         val:904, dx:0,    dy:-50},
+  "840": {label:"USA",          val:468, dx:-65,  dy:-18},
+  "410": {label:"Corea del Sud",val:271, dx:72,   dy:-32},
+  "276": {label:"Germania",     val:264, dx:55,   dy:-45},
+  "392": {label:"Giappone",     val:263, dx:72,   dy:20},
+};
+
+d3.json('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json').then(world => {
+  const features = topojson.feature(world, world.objects.countries).features;
+
+  svg.selectAll('path.country')
+    .data(features)
+    .join('path')
+    .attr('class','country')
+    .attr('d', path)
+    .attr('fill', d => { const iso2=numericToIso2[String(d.id)]; return getColor(rawData[iso2]); })
+    .attr('stroke','#fff')
+    .attr('stroke-width', 0.5)
+    .style('cursor', d => rawData[numericToIso2[String(d.id)]] ? 'pointer' : 'default')
+    .on('mousemove', function(event, d){
+      const iso2=numericToIso2[String(d.id)];
+      const val=rawData[iso2];
+      const name=countryNames[iso2]||iso2||'—';
+      ttName.textContent=name;
+      ttVal.textContent=val ? `Documenti: ${val.toLocaleString('it-IT')}` : 'Nessun documento';
+      tooltip.style.display='block';
+      tooltip.style.left=(event.clientX+14)+'px';
+      tooltip.style.top=(event.clientY-10)+'px';
+    })
+    .on('mouseleave',()=>{ tooltip.style.display='none'; });
+
+  features.forEach(f => {
+    const id = String(f.id);
+    if (!manualOffsets[id]) return;
+    const info = manualOffsets[id];
+    const [cx,cy] = path.centroid(f);
+    if (isNaN(cx)||isNaN(cy)) return;
+    const lx=cx+info.dx, ly=cy+info.dy;
+
+    svg.append('line')
+      .attr('x1',cx).attr('y1',cy).attr('x2',lx).attr('y2',ly+13)
+      .attr('stroke','rgba(0,0,0,0.25)').attr('stroke-width',0.8)
+      .attr('stroke-dasharray','2,2');
+
+    svg.append('circle').attr('cx',cx).attr('cy',cy).attr('r',3).attr('fill','#1e293b');
+
+    const boxW = info.label.length>8 ? 90 : 66;
+    svg.append('rect')
+      .attr('x',lx-boxW/2).attr('y',ly).attr('width',boxW).attr('height',26).attr('rx',4)
+      .attr('fill','rgba(255,255,255,0.95)').attr('stroke','rgba(0,0,0,0.12)').attr('stroke-width',0.5);
+
+    svg.append('text').attr('x',lx).attr('y',ly+11)
+      .attr('text-anchor','middle').attr('font-size','9px').attr('font-weight','600')
+      .attr('fill','#0f172a').text(info.label);
+
+    svg.append('text').attr('x',lx).attr('y',ly+22)
+      .attr('text-anchor','middle').attr('font-size','8.5px')
+      .attr('fill','#475569').text(info.val.toLocaleString('it-IT')+' doc.');
+  });
+});
+</script>
