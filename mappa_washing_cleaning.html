@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mappa Brevetti — Washing and Cleaning</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+    background: #fff;
+    color: #222;
+    padding: 28px 40px 20px;
+  }
+  h1 {
+    font-size: 15px;
+    font-weight: 600;
+    color: #222;
+    margin-bottom: 20px;
+    text-align: center;
+  }
+  #map-wrap {
+    position: relative;
+    width: 100%;
+    max-width: 960px;
+    margin: 0 auto;
+  }
+  svg#map { width: 100%; height: auto; display: block; }
+  .country { stroke: #fff; stroke-width: 0.35; }
+  .country:hover { stroke: #333; stroke-width: 0.8; opacity: 0.85; cursor: pointer; }
+  .no-data { fill: #d6d6d6; }
+
+  /* Tooltip */
+  #tooltip {
+    position: fixed;
+    background: rgba(255,255,255,0.96);
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    padding: 7px 11px;
+    font-size: 12px;
+    pointer-events: none;
+    display: none;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.13);
+    z-index: 999;
+  }
+  #tooltip strong { display: block; margin-bottom: 2px; font-size: 13px; }
+
+  /* Callout labels */
+  .callout-label { font-size: 12px; font-weight: 700; fill: #111; pointer-events: none; }
+  .callout-sub   { font-size: 11px; font-weight: 400; fill: #555; pointer-events: none; }
+  .callout-dot   { fill: #111; pointer-events: none; }
+  .callout-line  { stroke: #555; stroke-width: 0.8; stroke-dasharray: 3,2; fill: none; pointer-events: none; }
+
+  .footer { font-size: 10.5px; color: #aaa; text-align: center; margin-top: 10px; }
+</style>
+</head>
+<body>
+
+<h1>Distribuzione geografica dei documenti brevettuali — Washing and cleaning technologies</h1>
+
+<div id="map-wrap">
+  <svg id="map" viewBox="0 0 960 540"></svg>
+</div>
+
+<p class="footer">Elaborazione propria su dati Espacenet.</p>
+
+<div id="tooltip"></div>
+
+<script>
+const patentData = {
+  "CN":2598,"US":863,"KR":651,"JP":539,"DE":429,"CA":183,"AU":139,
+  "ES":137,"TW":130,"BR":107,"MX":105,"AT":98,"FR":93,"GB":74,
+  "PL":73,"IT":68,"DK":43,"PT":43,"CH":41,"ZA":33,"NL":27,
+  "HK":23,"RU":23,"SG":23,"BE":22,"SI":20,"HU":19,"FI":17,
+  "AR":15,"NO":15,"MY":14,"SE":14,"CZ":11,"HR":11,"NZ":11,
+  "TR":11,"CO":10,"GR":10,"IL":9,"LU":9,"CL":8,"SK":7,
+  "CY":5,"IN":5,"RS":5,"LT":4,"PE":4,"PH":4,"UA":4,
+  "IE":3,"MA":3,"BG":2,"EE":2,"SA":2,"CR":1,"EC":1,"RO":1
+};
+
+const countryNames = {
+  "CN":"Cina","US":"USA","KR":"Corea del Sud","JP":"Giappone","DE":"Germania",
+  "CA":"Canada","AU":"Australia","ES":"Spagna","TW":"Taiwan","BR":"Brasile",
+  "MX":"Messico","AT":"Austria","FR":"Francia","GB":"Regno Unito","PL":"Polonia",
+  "IT":"Italia","DK":"Danimarca","PT":"Portogallo","CH":"Svizzera","ZA":"Sudafrica",
+  "NL":"Paesi Bassi","HK":"Hong Kong","RU":"Russia","SG":"Singapore","BE":"Belgio",
+  "SI":"Slovenia","HU":"Ungheria","FI":"Finlandia","AR":"Argentina","NO":"Norvegia",
+  "MY":"Malaysia","SE":"Svezia","CZ":"Rep. Ceca","HR":"Croazia","NZ":"Nuova Zelanda",
+  "TR":"Turchia","CO":"Colombia","GR":"Grecia","IL":"Israele","LU":"Lussemburgo",
+  "CL":"Cile","SK":"Slovacchia","CY":"Cipro","IN":"India","RS":"Serbia",
+  "LT":"Lituania","PE":"Perù","PH":"Filippine","UA":"Ucraina","IE":"Irlanda",
+  "MA":"Marocco","BG":"Bulgaria","EE":"Estonia","SA":"Arabia Saudita",
+  "CR":"Costa Rica","EC":"Ecuador","RO":"Romania"
+};
+
+// dot = centroide paese sulla proiezione, label = angolo sup-sin del box
+const callouts = [
+  { iso2:"CN", name:"Cina",          val:2598, dot:[708, 156], label:[600,  68] },
+  { iso2:"US", name:"USA",           val:863,  dot:[266, 143], label:[ 60, 165] },
+  { iso2:"KR", name:"Corea del Sud", val:651,  dot:[758, 152], label:[820, 100] },
+  { iso2:"JP", name:"Giappone",      val:539,  dot:[780, 152], label:[820, 148] },
+  { iso2:"DE", name:"Germania",      val:429,  dot:[501, 113], label:[410,  40] },
+];
+
+const colors = ["#d6d6d6","#dce9f5","#93bedd","#4a8ec2","#1a5fa0","#0a2f5e"];
+const thresholds = [0,1,10,50,200,600];
+
+function getColor(v) {
+  if (!v || v === 0) return colors[0];
+  if (v < 10)  return colors[1];
+  if (v < 50)  return colors[2];
+  if (v < 200) return colors[3];
+  if (v < 600) return colors[4];
+  return colors[5];
+}
+
+const numToIso2 = {
+  4:"AF",8:"AL",12:"DZ",24:"AO",32:"AR",36:"AU",40:"AT",50:"BD",56:"BE",
+  64:"BT",68:"BO",76:"BR",100:"BG",116:"KH",120:"CM",124:"CA",144:"LK",
+  152:"CL",156:"CN",170:"CO",180:"CD",188:"CR",191:"HR",192:"CU",196:"CY",
+  203:"CZ",204:"BJ",208:"DK",218:"EC",818:"EG",222:"SV",231:"ET",246:"FI",
+  250:"FR",266:"GA",276:"DE",288:"GH",300:"GR",320:"GT",324:"GN",332:"HT",
+  340:"HN",348:"HU",356:"IN",360:"ID",364:"IR",368:"IQ",372:"IE",376:"IL",
+  380:"IT",388:"JM",392:"JP",400:"JO",398:"KZ",404:"KE",408:"KP",410:"KR",
+  414:"KW",418:"LA",422:"LB",430:"LR",434:"LY",440:"LT",442:"LU",458:"MY",
+  484:"MX",504:"MA",508:"MZ",516:"NA",524:"NP",528:"NL",554:"NZ",558:"NI",
+  566:"NG",578:"NO",586:"PK",591:"PA",600:"PY",604:"PE",608:"PH",616:"PL",
+  620:"PT",630:"PR",634:"QA",642:"RO",643:"RU",682:"SA",686:"SN",694:"SL",
+  703:"SK",705:"SI",706:"SO",710:"ZA",724:"ES",752:"SE",756:"CH",760:"SY",
+  764:"TH",768:"TG",780:"TT",788:"TN",792:"TR",800:"UG",804:"UA",784:"AE",
+  826:"GB",840:"US",858:"UY",860:"UZ",862:"VE",704:"VN",887:"YE",894:"ZM",
+  716:"ZW",498:"MD",688:"RS",807:"MK",51:"AM",31:"AZ",112:"BY",268:"GE",
+  417:"KG",762:"TJ",795:"TM",496:"MN",702:"SG",344:"HK",158:"TW",
+  232:"ER",262:"DJ",426:"LS",748:"SZ",72:"BW",454:"MW",646:"RW",
+  108:"BI",140:"CF",729:"SD",728:"SS",466:"ML",562:"NE",148:"TD",
+  384:"CI",854:"BF",450:"MG",478:"MR",178:"CG",20:"AD",470:"MT",
+  492:"MC",438:"LI",70:"BA",499:"ME",233:"EE",428:"LV"
+};
+
+const svg = d3.select("#map");
+const tooltip = document.getElementById("tooltip");
+const proj = d3.geoNaturalEarth1().scale(153).translate([480, 250]);
+const path = d3.geoPath().projection(proj);
+
+fetch("https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json")
+  .then(r => r.json())
+  .then(world => {
+    const countries = topojson.feature(world, world.objects.countries);
+
+    svg.selectAll(".country")
+      .data(countries.features)
+      .join("path")
+      .attr("class", d => "country" + (!patentData[numToIso2[+d.id]] ? " no-data" : ""))
+      .attr("d", path)
+      .attr("fill", d => getColor(patentData[numToIso2[+d.id]]))
+      .on("mousemove", (event, d) => {
+        const iso2 = numToIso2[+d.id];
+        const val = patentData[iso2];
+        const name = countryNames[iso2] || iso2 || "—";
+        tooltip.innerHTML = `<strong>${name}</strong>${val ? val.toLocaleString("it-IT") + " famiglie brevettali" : "Nessun dato"}`;
+        tooltip.style.display = "block";
+        tooltip.style.left = (event.clientX + 14) + "px";
+        tooltip.style.top = (event.clientY - 10) + "px";
+      })
+      .on("mouseleave", () => tooltip.style.display = "none");
+
+    // Callout labels
+    const g = svg.append("g");
+    const boxW = 96, boxH = 34;
+
+    callouts.forEach(c => {
+      const [dx, dy] = c.dot;
+      const [lx, ly] = c.label;
+      const cx = lx + boxW / 2;
+      const cy = ly + boxH;
+
+      g.append("line")
+        .attr("class","callout-line")
+        .attr("x1", dx).attr("y1", dy)
+        .attr("x2", cx).attr("y2", cy);
+
+      g.append("rect")
+        .attr("x", lx).attr("y", ly)
+        .attr("width", boxW).attr("height", boxH)
+        .attr("rx", 3)
+        .attr("fill","white").attr("stroke","#bbb").attr("stroke-width",0.8);
+
+      g.append("text")
+        .attr("class","callout-label")
+        .attr("x", cx).attr("y", ly + 14)
+        .attr("text-anchor","middle")
+        .text(c.name);
+
+      g.append("text")
+        .attr("class","callout-sub")
+        .attr("x", cx).attr("y", ly + 27)
+        .attr("text-anchor","middle")
+        .text(c.val.toLocaleString("it-IT") + " doc.");
+
+      g.append("circle")
+        .attr("class","callout-dot")
+        .attr("cx", dx).attr("cy", dy).attr("r", 3.5);
+    });
+
+    // Legend inside SVG — bottom left, same style as reference image
+    const legendX = 30, legendY = 460;
+    const boxSize = 22;
+    const legendColors = [colors[1], colors[2], colors[3], colors[4], colors[5]];
+    const legendLabels = ["1","10","50","200","2.598"];
+
+    svg.append("text")
+      .attr("x", legendX).attr("y", legendY - 8)
+      .attr("font-size", 12).attr("fill","#444").attr("font-weight","600")
+      .text("N° brevetti");
+
+    legendColors.forEach((col, i) => {
+      svg.append("rect")
+        .attr("x", legendX + i * (boxSize + 2)).attr("y", legendY)
+        .attr("width", boxSize).attr("height", boxSize * 0.65)
+        .attr("fill", col);
+
+      svg.append("text")
+        .attr("x", legendX + i * (boxSize + 2) + boxSize / 2)
+        .attr("y", legendY + boxSize * 0.65 + 13)
+        .attr("text-anchor","middle")
+        .attr("font-size", 10).attr("fill","#555")
+        .text(legendLabels[i]);
+    });
+  });
+</script>
+</body>
+</html>
